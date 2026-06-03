@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-Vision WhatsApp Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{--bg-primary:#111b21;--bg-secondary:#202c33;--bg-tertiary:#2a3942;--bg-hover:#2a3942;--bg-message-out:#005c4b;--bg-message-in:#202c33;--accent:#00a884;--accent-light:#25d366;--text-primary:#e9edef;--text-secondary:#8696a0;--border:#2a3942;--input-bg:#2a3942;--shadow:0 2px 8px rgba(0,0,0,0.4);}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--bg-primary);color:var(--text-primary);overflow:hidden;}
+    .app-shell{display:flex;height:100vh;}
+    .sidebar{width:360px;min-width:280px;background:var(--bg-secondary);display:flex;flex-direction:column;border-right:1px solid var(--border);transition:transform 0.3s;}
+    .sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg-tertiary);min-height:60px;}
+    .sidebar-profile{display:flex;align-items:center;gap:10px;}
+    .avatar-wrap{position:relative;}
+    .avatar-placeholder{width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0;}
+    .avatar-wrap.small .avatar-placeholder{width:36px;height:36px;font-size:15px;}
+    .online-dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:var(--accent-light);border:2px solid var(--bg-secondary);}
+    .sidebar-info h2{font-size:15px;font-weight:600;}
+    .status-text{font-size:12px;color:var(--accent-light);}
+    .header-icons{display:flex;gap:4px;}
+    .icon-btn{background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background 0.2s,color 0.2s;}
+    .icon-btn:hover{background:var(--bg-hover);color:var(--text-primary);}
+    .search-wrap{display:flex;align-items:center;gap:8px;margin:8px 12px;background:var(--input-bg);border-radius:8px;padding:8px 12px;}
+    .search-icon{color:var(--text-secondary);flex-shrink:0;}
+    .search-input{background:none;border:none;outline:none;color:var(--text-primary);font-size:14px;width:100%;font-family:inherit;}
+    .search-input::placeholder{color:var(--text-secondary);}
+    .chat-list{flex:1;overflow-y:auto;}
+    .chat-list::-webkit-scrollbar{width:4px;}
+    .chat-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+    .chat-item{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid rgba(255,255,255,0.04);}
+    .chat-item:hover,.chat-item.active{background:var(--bg-hover);}
+    .chat-item-info{flex:1;min-width:0;}
+    .chat-item-top{display:flex;justify-content:space-between;align-items:center;}
+    .chat-item-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .chat-item-time{font-size:11px;color:var(--text-secondary);flex-shrink:0;}
+    .chat-item-preview{font-size:13px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+    .unread-badge{background:var(--accent-light);color:#111;border-radius:50%;font-size:11px;font-weight:700;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;flex-shrink:0;}
+    .chat-area{flex:1;display:flex;flex-direction:column;background:#0b141a;background-image:radial-gradient(ellipse at 20% 50%,rgba(0,168,132,.04) 0%,transparent 60%);min-width:0;}
+    .chat-header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg-tertiary);min-height:60px;box-shadow:var(--shadow);}
+    .back-btn{display:none;}
+    .chat-contact{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;}
+    .contact-info h3{font-size:15px;font-weight:600;}
+    .typing-status{font-size:12px;color:var(--accent-light);}
+    .header-actions{display:flex;gap:4px;}
+    .messages-container{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px;}
+    .messages-container::-webkit-scrollbar{width:4px;}
+    .messages-container::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+    .date-divider{text-align:center;margin:12px 0;}
+    .date-divider span{background:var(--bg-secondary);color:var(--text-secondary);font-size:12px;padding:4px 12px;border-radius:8px;}
+    .message{display:flex;flex-direction:column;max-width:70%;animation:fadeUp .25s ease;}
+    .message.out{align-self:flex-end;align-items:flex-end;}
+    .message.in{align-self:flex-start;align-items:flex-start;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .bubble{padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.5;word-break:break-word;}
+    .message.out .bubble{background:var(--bg-message-out);border-bottom-right-radius:2px;}
+    .message.in .bubble{background:var(--bg-message-in);border-bottom-left-radius:2px;}
+    .bubble-meta{display:flex;align-items:center;gap:4px;font-size:11px;color:rgba(255,255,255,.45);margin-top:3px;}
+    .message.in .bubble-meta{color:var(--text-secondary);}
+    .typing-bubble{display:flex;gap:4px;align-items:center;padding:10px 14px;}
+    .typing-dot{width:7px;height:7px;border-radius:50%;background:var(--text-secondary);animation:typingDot 1.2s infinite;}
+    .typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+    @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+    .product-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;margin:4px 0;}
+    .product-card h4{font-size:13px;font-weight:700;color:var(--accent-light);margin-bottom:4px;}
+    .product-card .price{font-size:15px;font-weight:700;color:#fff;}
+    .product-card .badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px;}
+    .badge-stock{background:#005c4b;color:#25d366;}
+    .badge-out{background:#3d1a1a;color:#ff6b6b;}
+    .product-card .desc{font-size:12px;color:var(--text-secondary);margin-top:4px;}
+    .shop-btn{display:inline-block;margin-top:6px;font-size:12px;color:var(--accent-light);text-decoration:none;font-weight:600;}
+    .quick-replies{display:flex;gap:8px;padding:8px 16px;overflow-x:auto;flex-wrap:nowrap;}
+    .quick-replies::-webkit-scrollbar{display:none}
+    .qr-chip{background:var(--bg-tertiary);border:1px solid var(--accent);color:var(--accent-light);padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .2s,color .2s;}
+    .qr-chip:hover{background:var(--accent);color:#fff;}
+    .input-area{display:flex;align-items:flex-end;gap:8px;padding:10px 16px;background:var(--bg-tertiary);}
+    .input-wrapper{flex:1;display:flex;align-items:flex-end;background:var(--input-bg);border-radius:24px;padding:8px 14px;gap:8px;}
+    .message-input{flex:1;background:none;border:none;outline:none;color:var(--text-primary);font-size:15px;font-family:inherit;resize:none;max-height:120px;line-height:1.5;}
+    .message-input::placeholder{color:var(--text-secondary);}
+    .send-btn{background:var(--accent);border:none;color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .15s;}
+    .send-btn:hover{background:var(--accent-light);transform:scale(1.05);}
+    .attachment-drawer{background:var(--bg-secondary);border-top:1px solid var(--border);padding:12px 16px;display:none;max-height:200px;overflow-y:auto;}
+    .attachment-drawer.open{display:block;}
+    .drawer-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+    .drawer-header h4{font-size:14px;}
+    .close-drawer{background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer;}
+    .drawer-grid{display:flex;gap:16px;flex-wrap:wrap;}
+    .drawer-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;padding:8px 12px;border-radius:8px;transition:background .2s;min-width:80px;}
+    .drawer-item:hover{background:var(--bg-hover);}
+    .camera-thumb{font-size:28px;}
+    .drawer-item span{font-size:11px;color:var(--text-secondary);text-align:center;}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1f2c34;color:var(--text-primary);padding:10px 20px;border-radius:8px;font-size:14px;opacity:0;transition:all .3s;z-index:9999;box-shadow:var(--shadow);pointer-events:none;}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    .whatsapp-float{position:fixed;bottom:28px;right:24px;background:#25d366;color:#fff;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 4px 16px rgba(37,211,102,.4);transition:transform .2s,box-shadow .2s;z-index:100;}
+    .whatsapp-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(37,211,102,.55);}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);}
+    .modal-overlay.open{display:flex;}
+    .modal-content{background:var(--bg-secondary);border-radius:12px;width:90%;max-width:420px;padding:24px;border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.5);animation:fadeUp .25s ease;max-height:80vh;overflow-y:auto;}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+    .modal-header h3{font-size:17px;font-weight:700;}
+    .close-modal{background:none;border:none;color:var(--text-secondary);font-size:22px;cursor:pointer;}
+    .modal-body p{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:4px;}
+    .form-group{margin:12px 0;}
+    .form-group label{display:block;margin-bottom:6px;font-weight:600;font-size:14px;}
+    .form-group input,.form-group select{width:100%;padding:10px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);outline:none;font-family:inherit;font-size:14px;transition:border .2s;}
+    .form-group input:focus,.form-group select:focus{border-color:var(--accent);}
+    .form-group small{display:block;margin-top:6px;color:var(--text-secondary);font-size:12px;}
+    .form-group small a{color:var(--accent-light);text-decoration:none;font-weight:600;}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+    .btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:13px;font-family:inherit;transition:opacity .2s,transform .15s;}
+    .btn:hover{opacity:.88;transform:scale(1.02);}
+    .btn-danger{background:#ea0038;color:#fff;}
+    .btn-primary{background:var(--accent);color:#fff;}
+    .emoji-picker{position:fixed;bottom:80px;right:80px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:12px;display:none;z-index:500;box-shadow:var(--shadow);width:280px;}
+    .emoji-picker.open{display:block;}
+    .emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:220px;overflow-y:auto;}
+    .emoji-btn-item{font-size:20px;padding:4px;border-radius:6px;cursor:pointer;text-align:center;transition:background .15s;border:none;background:none;}
+    .emoji-btn-item:hover{background:var(--bg-hover);}
+
+    /* Password Modal */
+    .pwd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:2000;backdrop-filter:blur(6px);}
+    .pwd-overlay.open{display:flex;}
+    .pwd-box{background:var(--bg-secondary);border-radius:16px;width:90%;max-width:360px;padding:28px 24px;border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.6);animation:fadeUp .25s ease;text-align:center;}
+    .pwd-box .lock-icon{font-size:48px;margin-bottom:12px;}
+    .pwd-box h3{font-size:18px;font-weight:700;margin-bottom:6px;}
+    .pwd-box p{font-size:13px;color:var(--text-secondary);margin-bottom:20px;}
+    .pwd-input-wrap{position:relative;margin-bottom:16px;}
+    .pwd-input{width:100%;padding:12px 44px 12px 14px;background:var(--bg-tertiary);border:2px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:16px;font-family:inherit;outline:none;letter-spacing:2px;transition:border .2s;}
+    .pwd-input:focus{border-color:var(--accent);}
+    .pwd-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:4px;}
+    .pwd-submit{width:100%;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .2s,transform .15s;}
+    .pwd-submit:hover{background:var(--accent-light);transform:scale(1.02);}
+    .pwd-error{color:#ff6b6b;font-size:13px;margin-top:10px;display:none;}
+    .pwd-shake{animation:shake .4s ease;}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+
+    @media(max-width:768px){.sidebar{position:fixed;left:0;top:0;bottom:0;z-index:200;width:100%;}.sidebar.hidden{transform:translateX(-100%);}.back-btn{display:flex!important;}.message{max-width:82%;}.whatsapp-float{bottom:20px;right:16px;width:46px;height:46px;}.emoji-picker{right:12px;width:260px;}}
+    @media(min-width:769px){.sidebar.hidden{transform:none!important;}}
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-profile">
+        <div class="avatar-wrap"><img src="data:image/png;base64,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p1qkRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERF/9k=" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#fff;padding:2px;" /><span class="online-dot"></span></div>
+        <div class="sidebar-info"><h2>E-Vision Bot</h2><p class="status-text">Online • Since 2000</p></div>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" id="aiConfigBtn" title="AI Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></button>
+        <button class="icon-btn" id="newChatBtn" title="New Chat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="icon-btn" id="menuBtn" title="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+      </div>
+    </div>
+    <div class="search-wrap"><svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search or start new chat" />
+    </div>
+    <div class="chat-list" id="chatList"></div>
+  </aside>
+
+  <main class="chat-area">
+    <div class="chat-header">
+      <button class="icon-btn back-btn" id="backBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></button>
+      <div class="chat-contact">
+        <div class="avatar-wrap small"><img id="headerAvatar" src="data:image/png;base64,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p1qkRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERF/9k=" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#fff;" /><span class="online-dot"></span></div>
+        <div class="contact-info"><h3 id="activeChatName">E-Vision Support</h3><p class="typing-status" id="typingStatus">online</p></div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="soundToggleBtn" title="Sound"><svg id="soundOnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          <svg id="soundOffIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="messages-container" id="messagesContainer"><div class="date-divider"><span>Today</span></div></div>
+
+    <div class="quick-replies" id="quickReplies"></div>
+
+    <div class="attachment-drawer" id="attachmentDrawer">
+      <div class="drawer-header"><h4>📦 Product Categories</h4><button class="close-drawer" id="closeDrawerBtn">&times;</button></div>
+      <div class="drawer-grid">
+        <div class="drawer-item" data-cat="cctv"><div class="camera-thumb">📷</div><span>CCTV Cameras</span></div>
+        <div class="drawer-item" data-cat="ptz"><div class="camera-thumb">🔄</div><span>PTZ Cameras</span></div>
+        <div class="drawer-item" data-cat="dvr"><div class="camera-thumb">📹</div><span>DVR/NVR</span></div>
+        <div class="drawer-item" data-cat="access"><div class="camera-thumb">🔐</div><span>Access Control</span></div>
+        <div class="drawer-item" data-cat="network"><div class="camera-thumb">🌐</div><span>Network</span></div>
+        <div class="drawer-item" data-cat="fire"><div class="camera-thumb">🚨</div><span>Fire Alarm</span></div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <button class="icon-btn" id="attachBtn" title="Products"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      <div class="input-wrapper">
+        <textarea id="messageInput" class="message-input" placeholder="Type a message" rows="1" autocomplete="off"></textarea>
+        <button class="icon-btn" id="emojiBtn" title="Emoji"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+      </div>
+      <button class="send-btn" id="sendBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </main>
+</div>
+
+<div class="emoji-picker" id="emojiPicker"><div class="emoji-grid" id="emojiGrid"></div></div>
+<a href="https://wa.me/919319183121?text=Hello%20I%20need%20more%20information" target="_blank" class="whatsapp-float" title="WhatsApp"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.458L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436.002 9.858-4.417 9.86-9.86.001-2.636-1.02-5.115-2.875-6.973-1.854-1.857-4.324-2.879-6.963-2.88-5.442 0-9.863 4.418-9.865 9.862-.001 1.702.443 3.361 1.29 4.82l-.497 1.815 1.925-.505zM17.487 14.39c-.27-.136-1.602-.79-1.85-.88-.25-.09-.43-.136-.61.136-.18.272-.697.88-.853 1.058-.157.178-.315.2-.585.064-1.04-.523-1.72-1.027-2.4-2.2-.177-.308.177-.286.507-.945.09-.18.046-.338-.02-.474-.067-.136-.61-1.472-.836-2.013-.22-.53-.443-.457-.61-.466-.157-.008-.338-.01-.52-.01-.18 0-.473.067-.72.338-.246.27-1.058 1.036-1.058 2.529 0 1.492 1.08 2.936 1.23 3.138.15.202 2.126 3.246 5.15 4.553.72.31 1.28.496 1.72.637.724.23 1.382.197 1.902.12.58-.087 1.602-.656 1.83-1.256.226-.6.226-1.114.157-1.223-.07-.11-.256-.2-.526-.336z"/></svg></a>
+
+<div class="modal-overlay" id="aiModal">
+  <div class="modal-content">
+    <div class="modal-header"><h3>🤖 AI Model Connect करें</h3><button class="close-modal" id="closeAiModal">&times;</button></div>
+    <div class="modal-body">
+      <p>E-Vision bot को live AI से connect करें — real-time smart replies मिलेंगे!</p>
+      <div class="form-group"><label>AI Provider चुनें:</label>
+        <select id="aiProviderSelect"><option value="gemini">Google Gemini (Free/Recommended)</option><option value="openai">OpenAI GPT-4o-mini</option><option value="groq">Groq Llama 3 (High Speed)</option></select>
+      </div>
+      <div class="form-group"><label id="apiKeyLabel">Gemini API Key:</label>
+        <input type="password" id="geminiApiKeyInput" placeholder="Paste your API key here" />
+        <small>Key नहीं है? <a id="apiKeyHelpLink" href="https://aistudio.google.com/" target="_blank">Google AI Studio से Free Key लें 🔗</a></small>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="clearAiKeyBtn">Remove Key</button>
+        <button class="btn btn-primary" id="saveAiKeyBtn">Save & Activate AI</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Password Modal -->
+<div class="pwd-overlay" id="pwdOverlay">
+  <div class="pwd-box" id="pwdBox">
+    <div class="lock-icon">🔒</div>
+    <h3>Admin Access</h3>
+    <p>AI Settings ke liye password enter karein</p>
+    <div class="pwd-input-wrap">
+      <input type="password" id="pwdInput" class="pwd-input" placeholder="Password" maxlength="20" />
+      <button class="pwd-eye" id="pwdEye" onclick="togglePwdEye()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <button class="pwd-submit" onclick="checkPassword()">🔓 Unlock</button>
+    <div class="pwd-error" id="pwdError">❌ Wrong password! Try again.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const EVISION_FULL_DATA={
+  company:{name:"E-Vision India Pvt. Ltd.",since:"2000",address:"9/205, Main Market, Near PNB, Old Faridabad-121002",phones:["+91-9319183121","+91-9811250806","+91-9278784444"],whatsapp:"https://wa.me/919319183121",emails:["info@evisionindia.com","support@evisionindia.com","marketing@evisionindia.com"],shop:"https://shopevision.com",website:"https://evisionindia.com"},
+  products:{
+    cctv:[
+      {name:"Dome Camera",type:"Analog/IP",features:"Indoor/Outdoor, HD/4K, Night Vision",app:"Home, Office, Retail"},
+      {name:"Bullet Camera",type:"Analog/IP",features:"Weatherproof, Long-range, IR",app:"Parking, Outdoor areas"},
+      {name:"IP Camera",type:"Network",features:"Remote access, PoE compatible, Cloud storage",app:"Enterprise"},
+      {name:"HD Camera",type:"High Definition",features:"2MP-8MP resolution, Crystal clear",app:"All"},
+      {name:"ANPR Camera",type:"Specialized",features:"Auto Number Plate Recognition, AI",app:"Parking, Toll, Gate"},
+      {name:"WiFi Camera",type:"Indoor WiFi",features:"No wiring, App-based monitoring",app:"Home"},
+      {name:"Solar Camera",type:"Solar Powered",features:"No power line, Battery backup, 24/7",app:"Farm, Remote areas"},
+      {name:"4G Camera",type:"4G LTE",features:"No WiFi needed, Works anywhere",app:"Warehouse, Outdoor"},
+      {name:"Color Night Vision",type:"Night Vision",features:"Full color in low light, AI filter",app:"Premium security"},
+    ],
+    ptz:[
+      {model:"2 MP 25x IR Network PTZ",res:"2MP",zoom:"25x",ir:"Yes",app:"Medium coverage areas"},
+      {model:"2 MP 30x IR Network PTZ",res:"2MP",zoom:"30x",ir:"Yes",app:"Wide areas"},
+      {model:"2 MP 36x IR Network PTZ",res:"2MP",zoom:"36x",ir:"Yes",app:"Large facilities"},
+      {model:"5 MP 36x IR Network PTZ",res:"5MP",zoom:"36x",ir:"Yes",app:"Premium security"},
+      {model:"5 MP 40x IR Network PTZ",res:"5MP",zoom:"40x",ir:"Yes",app:"Extensive coverage"},
+      {model:"5 MP 44x Laser AI PTZ",res:"5MP",zoom:"44x",ir:"Laser",app:"Ultra long-range"},
+      {model:"8 MP 40x IR Network PTZ",res:"8MP",zoom:"40x",ir:"Yes",app:"4K Premium"},
+    ],
+    dvrnvr:[
+      {type:"DVR",ch:"4Ch",res:"1080p-4MP",storage:"1TB-8TB",app:"Analog cameras"},
+      {type:"NVR",ch:"8Ch-32Ch",res:"2MP-8MP",storage:"2TB-16TB",app:"IP cameras"},
+      {type:"XVR",ch:"4Ch-16Ch",res:"Mixed",storage:"1TB-8TB",app:"Analog+IP"},
+    ],
+    access:[
+      {type:"Biometric Fingerprint Reader",tech:"Fingerprint scanning",feat:"Real-time tracking"},
+      {type:"RFID Card Reader",tech:"Card-based",feat:"Bulk access"},
+      {type:"Facial Recognition",tech:"AI Face match",feat:"Contactless entry"},
+      {type:"PIN + Card",tech:"Dual authentication",feat:"Enhanced security"},
+    ],
+    network:[
+      {name:"4+2 AI PoE Switch",ports:"4+2 Gigabit",power:"PoE",ai:"Yes"},
+      {name:"8+2 Managed PoE",ports:"8+2 Gigabit",power:"PoE",managed:"Yes"},
+      {name:"24+4 Port 10G PoE",ports:"24+4 10Gigabit",power:"PoE",enterprise:"Yes"},
+      {name:"Gigabit SFP Module",type:"Fiber",speed:"1Gbps"},
+      {name:"Media Converter",type:"Fiber-Ethernet",conversion:"Fiber to RJ45"},
+      {name:"Network Rack",cap:"12U-42U",type:"Enterprise"},
+    ],
+    other:[
+      {name:"Fire Alarm System",type:"Automatic detection",app:"All buildings"},
+      {name:"Metal Detector",type:"Walk-through, Hand-held",app:"Airport, Bank"},
+      {name:"Automatic Boom Barrier",type:"Vehicle gate",control:"Remote/Card"},
+      {name:"PA System",ch:"4Ch-16Ch",power:"50W-1000W"},
+      {name:"Video Door Phone",type:"Intercom",features:"WiFi, App, Recording"},
+      {name:"Currency Counting Machine",cap:"1000 notes/min",acc:"99.9%"},
+      {name:"Electronic Safe",capacity:"100L-500L",lock:"Biometric/PIN"},
+      {name:"Screening Machine",type:"Baggage scanner",res:"1024x768"},
+      {name:"Network Attached Storage",cap:"2TB-64TB",raid:"RAID 0/1/5/6"},
+      {name:"VMS/CMS Software",feat:"Multi-camera, Analytics, Cloud"},
+    ]
+  }
+};
+
+const state={activeChat:0,soundOn:true,aiKey:localStorage.getItem('evAiKey')||'active',aiProvider:localStorage.getItem('evAiProvider')||'gemini',chats:[
+  {id:0,name:'E-Vision Support',avatar:'🛡️',status:'online',messages:[],unread:0,lastMsg:'Ask me anything!',lastTime:'Now'},
+  {id:1,name:'Product Catalog',avatar:'📦',status:'online',messages:[],unread:0,lastMsg:'All products',lastTime:'Now'},
+  {id:2,name:'Technical Help',avatar:'🔧',status:'online',messages:[],unread:1,lastMsg:'CCTV AI Pipeline & Datasets',lastTime:'Now'},
+]};
+
+const qr=['📷 Cameras','🔄 PTZ','📹 DVR/NVR','🔐 Access','🌐 Network','🚨 Fire Alarm','💰 Pricing','📞 Contact','🏢 Solutions','🤖 CCTV AI','🎥 Video QA','🏗️ Architecture','📊 Datasets'];
+const emojis=['😀','😂','🥰','😎','🤔','😮','😢','😡','👍','👎','🙏','🤝','❤️','🔥','✅','⭐','💯','🎉','📷','🔒','💰','📦','🛡️','🔧','📞','🎯','🚀','💡','📡','☀️','🏢','🔐'];
+
+const el=id=>document.getElementById(id);
+const now=()=>new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+function showToast(msg){const t=el('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function playSound(t){if(!state.soundOn)return;try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);if(t==='send'){o.frequency.value=880;g.gain.setValueAtTime(.1,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.2);o.start();o.stop(c.currentTime+.2);}else{o.frequency.value=660;o.frequency.exponentialRampToValueAtTime(880,c.currentTime+.1);g.gain.setValueAtTime(.12,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.3);o.start();o.stop(c.currentTime+.3);}}catch(e){}}
+
+function renderChatList(){const q=el('searchInput').value.toLowerCase();el('chatList').innerHTML='';state.chats.filter(c=>c.name.toLowerCase().includes(q)).forEach(c=>{const i=document.createElement('div');i.className='chat-item'+(c.id===state.activeChat?' active':'');i.innerHTML=`<div class="avatar-wrap">`+(c.id===0?`<img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAB4AHgDASIAAhEBAxEB/8QAGwABAAIDAQEAAAAAAAAAAAAAAAQIBQYHAwL/xABCEAABAwMDAQQECQgLAAAAAAABAAIDBAURBgcSIQgTIjEUFkFRFTIzYXaBkbPRGFVxcoKTscIXOEZSoaKjsrTT4f/EABoBAQACAwEAAAAAAAAAAAAAAAADBAIFBgH/xAAuEQABBAECBAQGAgMAAAAAAAABAAIDEQQSIQUxQVEGE2FxFBYiMoGRI6FCwfD/2gAMAwEAAhEDEQA/ALloiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIvmaSOGMySyMjY3zc44A+tRPhe0/nSi/ft/FLRTUUL4XtP50ov37fxU0EEAg5B8iiIiIiIiIiIiIiIiIiIiIiIiIiLj+6O4tLHqun0XHDVsmqKuKk7zi3g6SQta3ryyG+MZOP/YV02w1LVZ4Cg/amP4KN2i9A3N1XTa30s2eSvpp45JYI2d44SNcCyVgwckENy3qPLp555h657+tecP1Of02gf9Sr5HhzFz5BPqOqqNnb8CuS6Lg5zYscvZJHVnbe/wA+q2S/bDa2rH8oHWg/M6ocP5V07tGXK6WTa2Ga2XCroKn0uCJ0tNM6N+OLsjk0g+wKv91132h2RERP1QxxzjjZW5P+ku7dqTJ2lhLyS706DOfaeL1lNwscOhIaeYPW+SnbxCfiHEcaPJ0kNcBsNtyL91zHZ6DdTUd9td6p71f66yU10iZWvlvLuHFrmOe0sfJlw4kdMHOcL2teqdU2rtDfBlXqC8T0Rv76UUs1bI6IxySFjfATxwA4EdOmBhenZ0/pHMtIbDn1V+FB8IfIefFnP4/j+Lx+L9XVQd8jLp7tANvHABomo6+LpkEMDASf2o3LWB7mwNfZ5i7/AO5LpXwQy8UmxS1hBY7SGgWD69nc1KZqLV1y7Q7rTFqO8to26hdF6KytkbF3Mcxy3gDxxwYcjHvXzQam1NL2iXWx2pLyaH1jkh9F9Ol7nuxM4BnDlx44GMYwvDYMS6i35fepOjmuq7hI39fLf4yj7FAtOR2nX/Sib79yCR5aHXzd/S9fiY7JXw+WLZBfIfd39/VZ/c/WGr9T7vu0hY75U2imirRQQNhndC0vyA58hb1d1zgewYwM5JyOw+stWUe5suiNQXSpucT31EJNRK6V0U0QcSWvd4uJDCMeXUHoo+/Gh4Zdbz37Sl+t8t3kkbJUWplaxlYyZrQQ6JmeTicA8R4s/FznAzfZ93ZuV6vMOkdSAVNVJG4UlbjEjyxpcWSe88QfF5+HrknKkGpuRTyRvt2I7KjIIZeD6saNrwGAOHJzXdX8rI/S1az6n1K/tHPtsmo7w6g9YJ4PRTWymHuxI8BnDlxwAB0wsjvNrbVd43Sj0PYLvNaadtXDRsfBK6IySycQXPc3xcQX4wOmBnBK1iz/ANZ54A/tLP8AevXtqIj8qCL6RUv3kaidK/QRf+VfhXmYWMMpjvLH0wauQrV3rqVm9n9c6qsW6rtFagvU91pX1stDI6eV0pZKwlrXMc7xAFzQMeWDnGVB1hry/wCnt+ayaS+XU2qkuTRJRelyGEw4aHAR54+RJ8vPqsNQA/lMu+lMn/IcsdvFSz1m7upIaSIyPbPJKQCBhrIubz19zWuP1LF00jYtjydSlh4diSZ4MjAA+GzsKskWfQros+oNQN7UzbY2/wB0NsdWMaKQVkhpyx1ODju88cdc+Xn1RaDs1WVNz3m07UVcneSh7Y+WOpbHAWN/ytHVFfwpDI1zvUrkvFOE3CmhhAAIjbddTuCVZvWF21DZZu/hZTS0Lzhr+7OYz7ndf8Vol63Q1DR5EMdESP70R/Fdkq6eGrpZaaoZzilaWPbkjIPzjqFrku3+kpflLW9/61XMf51UycHMfMXxTlrT0q/0tbh5mLE2podR96XDLnvxrOll4tprUR88Ds/7l0XtNQ1NbtSzuaeSWQ1kD3NjYXEdHe72dVs7tstCucHO09A4j2ulkP8AFy28AAAAYA8grkOPKI3MlfqtWJ+J4rciGfFh0Fhs73e4pVO2b1lrbS76XTdusjZKKruLXzPmo5XPbz4MdgggAYbnyWx9rax1EmpLJeKaKaYz0j6ZzY2F3Hu38genv70/YrHInwlxGIusKx8xFue3OjiDXC7Fn6r7quvZIsk8N7vt1q6SogkipooIjJGWhwe4udjPn8m37VrFqoK5vaYkl9CqTH6xzP5CJ2OJlceWceWOuVbFEGG0May+RtH+JZX5M2QWD+Rumr5Cq2VXd27PfNH7znWjbNUV1s9MhrmSNae7cQG8mOcAQx2Q7GfmPVfWx1lv2pN4fXiS1SUtv9JqayWVzSI+UofhjCR4iC/2ewdfZm0CJ8GNeq9ruvVe/M0nwnkeWNWjRq3+325X6qqFot1xb2l5KgUFW6IajmeXiF3ENMrjyzjywc5WQ3p07ftLbvN1zT2uWtthrIK5kkbSWtdHwLo5CB4CS3ofaD0yQQLPohw26S2+to3xNKJ2S6BQZoI33H+iqt7O6evGsN33a1ltU1HahXzXB8kmeHNznObGxxA5kOIzj2DrjIByVLbJ5O1XUCot80lJNUztk5REscx9M4HPswcqySI3Da1oF9bWM3iSWSV7wwAGMxgWdh3vqVUna7Tly09v9Q22ekqnsoq6aLvTC4Nc0MeGv/QRg5+dFbZFLBAIQQO6ocW4rJxOVssgohob71e/9oiIp1qkRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERF/9k=" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#fff;padding:2px;" />`:`<div class="avatar-placeholder">${c.avatar}</div>`)+`<span class="online-dot"></span></div><div class="chat-item-info"><div class="chat-item-top"><span class="chat-item-name">${c.name}</span><span class="chat-item-time">${c.lastTime}</span></div><div style="display:flex;justify-content:space-between"><span class="chat-item-preview">${c.lastMsg}</span></div></div>`;i.onclick=()=>openChat(c.id);el('chatList').appendChild(i);});}
+
+function openChat(id){state.activeChat=id;const c=state.chats.find(ch=>ch.id===id);c.unread=0;el('activeChatName').textContent=c.name;var _ha=el('headerAvatar');if(c.id===0){  if(_ha.tagName!=='IMG'){    var _ni=document.createElement('img');    _ni.id='headerAvatar';    _ni.style.cssText='width:36px;height:36px;border-radius:50%;object-fit:cover;background:#fff;padding:2px;';    _ha.parentNode.replaceChild(_ni,_ha);  }  el('headerAvatar').src='data:image/png;base64,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p1qkRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERF/9k=';}else{  if(_ha.tagName==='IMG'){    var _nd=document.createElement('div');    _nd.id='headerAvatar';    _nd.className='avatar-placeholder';    _nd.textContent=c.avatar;    _ha.parentNode.replaceChild(_nd,_ha);  }else{_ha.textContent=c.avatar;}};el('typingStatus').textContent=c.status;renderChatList();renderMessages();renderQuickReplies();if(window.innerWidth<=768)el('sidebar').classList.add('hidden');}
+
+const mc=el('messagesContainer');function renderMessages(){while(mc.children.length>1)mc.removeChild(mc.lastChild);state.chats.find(c=>c.id===state.activeChat).messages.forEach(m=>appendMsgDOM(m));scrollBottom();}
+function appendMsgDOM(m){const d=document.createElement('div');d.className=`message ${m.from}`;const cnt=m.html||m.text.replace(/\n/g,'<br>').replace(/\*(.*?)\*/g,'<strong>$1</strong>');d.innerHTML=`<div class="bubble">${cnt}</div><div class="bubble-meta"><span>${m.time}</span></div>`;mc.appendChild(d);}
+function scrollBottom(){mc.scrollTop=mc.scrollHeight;}
+function renderQuickReplies(){el('quickReplies').innerHTML='';qr.forEach(r=>{const b=document.createElement('button');b.className='qr-chip';b.textContent=r;b.onclick=()=>sendMessage(r);el('quickReplies').appendChild(b);});}
+
+async function sendMessage(txt){txt=(txt||el('messageInput').value).trim();if(!txt)return;el('messageInput').value='';autoResize();const c=state.chats.find(ch=>ch.id===state.activeChat);const m={from:'out',text:txt,time:now()};c.messages.push(m);c.lastMsg=txt;c.lastTime='Now';appendMsgDOM(m);scrollBottom();renderChatList();playSound('send');el('typingStatus').textContent='typing...';const d=document.createElement('div');d.className='message in';d.id='typingInd';d.innerHTML='<div class="bubble"><div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';mc.appendChild(d);scrollBottom();let r='';if(state.aiKey){r=await fetchAIReply(txt);}else{await new Promise(s=>setTimeout(s,300+Math.random()*400));r=getLocalReply(txt);}const t=el('typingInd');if(t)t.remove();el('typingStatus').textContent='online';const b={from:'in',text:r,time:now()};if(r.includes('<div class="product-card">'))b.html=r;c.messages.push(b);c.lastMsg=r.replace(/<[^>]+>/g,'').slice(0,42)+'...';c.lastTime='Now';appendMsgDOM(b);scrollBottom();renderChatList();playSound('receive');setTimeout(()=>{m.read=true;renderMessages();},1000);}
+
+function getLocalReply(txt){const t=txt.toLowerCase();const D=EVISION_FULL_DATA;if(/\b(hi|hello|helo|hey|namaste)\b/.test(t))return`👋 *E-Vision India में आपका स्वागत है!*\n\nहम 2000 से CCTV & Security Solutions provide करते हैं।\n\n📷 CCTV Cameras\n🔄 PTZ Cameras (Pan-Tilt-Zoom)\n📹 DVR/NVR Systems\n🔐 Access Control\n🌐 PoE Networking\n🚨 Fire Alarm Systems\nऔर भी बहुत कुछ!\n\n*कुछ भी पूछें!* 😊`;if(/\b(cctv|camera|cameras|dome|bullet)\b/.test(t))return`📷 *CCTV Camera Types:*\n\n${D.products.cctv.map(p=>`• **${p.name}** - ${p.type}\n  Features: ${p.features}\n  Application: ${p.app}`).join('\n\n')}\n\n🛒 Shop: https://shopevision.com\n📞 Info: +91-9319183121`;if(/\b(ptz|pan|tilt|zoom|dome|speed dome)\b/.test(t))return`🔄 *PTZ Speed Dome Cameras:*\n\n${D.products.ptz.map(p=>`• ${p.model}\n  Resolution: ${p.res} | Zoom: ${p.zoom} | IR: ${p.ir}`).join('\n\n')}\n\n✅ All cameras have 360° coverage, AI detection, and live monitoring!\n\n📞 Quote: +91-9319183121`;if(/\b(dvr|nvr|recorder|record|recording)\b/.test(t))return`📹 *Video Recording Systems:*\n\n${D.products.dvrnvr.map(p=>`• ${p.type} - ${p.ch}\n  Resolution: ${p.res} | Storage: ${p.storage}\n  Use with: ${p.app}`).join('\n\n')}\n\n✅ Support motion detection, cloud backup, remote playback!\n\n🛒 https://shopevision.com`;if(/\b(access|biometric|fingerprint|card|door)\b/.test(t))return`🔐 *Access Control Systems:*\n\n${D.products.access.map(p=>`• ${p.type}\n  Technology: ${p.tech}\n  Feature: ${p.feat}`).join('\n\n')}\n\n✅ Real-time attendance tracking, Audit logs, Multi-level access\n\n📞 Customization: +91-9319183121`;if(/\b(network|poe|switch|ethernet|gigabit)\b/.test(t))return`🌐 *Network Infrastructure:*\n\n${D.products.network.map(p=>`• ${p.name}\n  Specs: ${p.ports||p.type||p.cap}${p.power?` | Power: ${p.power}`:''}`).join('\n\n')}\n\n✅ Enterprise-grade, PoE power delivery, Managed features\n\n🛒 https://shopevision.com`;if(/\b(fire|alarm|safety|smoke|heat)\b/.test(t))return`🚨 *Fire Alarm & Safety Systems:*\n\n${D.products.other.filter(p=>p.name.includes('Fire')||p.name.includes('Alarm')||p.name.includes('Metal')||p.name.includes('Boom')).map(p=>`• ${p.name}\n  Type: ${p.type}`).join('\n\n')}\n\n✅ Automatic detection, Real-time alerts, Multi-zone monitoring\n\n📞 Install: +91-9319183121`;if(/\b(price|cost|rate|kitna|kitne|daam)\b/.test(t))return`💰 *E-Vision Pricing Range:*\n\n📷 CCTV Cameras: ₹1,500 - ₹25,000\n🔄 PTZ Cameras: ₹20,000 - ₹2,00,000+\n📹 DVR/NVR: ₹5,000 - ₹1,50,000\n🔐 Access Control: ₹8,000 - ₹1,00,000\n🌐 PoE Switches: ₹999 - ₹1,00,000+\n🚨 Fire Alarm: ₹10,000 - ₹2,00,000\n\n🚚 Free Shipping All India\n📊 Bulk Discounts Available\n\n📞 Custom Quote: +91-9319183121`;if(/\b(contact|phone|number|call|whatsapp|email)\b/.test(t))return`📞 *E-Vision Contact Info:*\n\n*Phone:*\n📱 +91-9319183121 (Main)\n📱 +91-9811250806\n📱 +91-9278784444\n\n*Email:*\n📧 info@evisionindia.com\n📧 support@evisionindia.com\n📧 marketing@evisionindia.com\n\n*Address:*\n📍 9/205, Main Market, Near PNB\n   Old Faridabad-121002\n\n*Hours:* Mon-Sat, 10AM-7PM\n\n💬 WhatsApp: +91-9319183121\n🌐 Shop: https://shopevision.com`;
+  // CCTV AI / Video QA / Technical Help
+  if(/video.qa|videoqa|video question|cctv.ai|cctv chatbot|red shirt|kitne log|suspicious|last 10|summary|yolo|llava|vision model|grounding dino|florence|scene caption|training data|dataset|star dataset|nextqa|tvqa|egoschema|traffic anomaly|multimodal|qwen|internvl|gpt.4o|video understand|temporal|qa pair|synthetic qa|caption generat|pipeline|object detect|person count|crowd|face recogn|number plate|anpr|lpr|loitering|perimeter|intrusion|ucf.crime|ucf crime|virat|meva|bytetrack|deepsort|milvus|qdrant|llama 4|yolov11|activitynet|youcook|architecture|production level|realtime|recorded footage|tech stack|vector db|event extract|fine.tune|vlm|synthetic/i.test(t)){
+    if(/yolo|object detect|person count|crowd|face recogn|anpr|lpr|loitering|perimeter|intrusion|anomaly detect/i.test(t)){
+      return [
+        '🔍 *E-Vision AI Detection Features:*',
+        '',
+        '*Object Detection (YOLO-based):*',
+        '✅ Person counting & tracking',
+        '✅ Vehicle detection & ANPR/LPR',
+        '✅ Face recognition',
+        '✅ Crowd density analysis',
+        '',
+        '*Behavioral Analytics:*',
+        '✅ Loitering detection',
+        '✅ Intrusion / perimeter breach alert',
+        '✅ Abandoned object alert',
+        '✅ Motion-based recording',
+        '',
+        '*Anomaly Detection:*',
+        '✅ Suspicious activity alert',
+        '✅ Fire & smoke detection',
+        '✅ Wrong-way detection',
+        '✅ Fight/violence detection',
+        '',
+        '*E-Vision AI Cameras:*',
+        '• Solar Sentinel AI (EV-724H) — Rs.7,599',
+        '• 5MP 44x Laser AI PTZ',
+        '• 8MP AI Security Kit — Rs.30,000',
+        '',
+        '📞 AI Demo: +91-9319183121',
+        '🌐 https://shopevision.com'
+      ].join('\n');
+    }
+    return [
+      '🎥 *E-Vision AI-Powered CCTV Video Intelligence*',
+      '',
+      'Ab aap apne CCTV se pooch sako:',
+      '• "Red shirt wala aadmi kahan gaya?"',
+      '• "Kitne log room mein enter hue?"',
+      '• "Koi suspicious activity hui?"',
+      '• "Last 10 minutes ka summary do"',
+      '• "Who entered after 10 AM?"',
+      '• "Where did the blue car go?"',
+      '',
+      '📊 *Production-Level Datasets:*',
+      '',
+      '🎯 Surveillance/CCTV:',
+      '• UCF-Crime — 1900+ videos, normal/abnormal events',
+      '• VIRAT — Person & vehicle tracking, activity annotations',
+      '• MEVA — Real-world multi-person surveillance scenarios',
+      '',
+      '❓ Video Question Answering:',
+      '• Next-QA | STAR | TVQA | EgoSchema',
+      '',
+      '🎬 Video Captioning:',
+      '• ActivityNet Captions | YouCook2',
+      '',
+      '🏗️ *Production Architecture:*',
+      'CCTV Stream',
+      '  → YOLOv11 / Grounding DINO',
+      '  → ByteTrack / DeepSORT',
+      '  → Event Extraction',
+      '  → Scene Caption (Qwen2.5-VL / InternVL3)',
+      '  → Vector DB (Milvus / Qdrant)',
+      '  → LLM Chatbot (Qwen3 / Llama 4)',
+      '',
+      '📦 *Stored Event Format:*',
+      'time: "10:03:12" | camera: "Gate-1"',
+      'event: "Person Entered"',
+      'description: "Male in red shirt entered main gate"',
+      '',
+      '🤖 *Open-Source Models:*',
+      'Qwen2.5-VL | InternVL3 | Llama 4',
+      'YOLOv11 | ByteTrack | Qdrant | Milvus',
+      '',
+      '🔢 *Synthetic Q&A Generation:*',
+      '10,000 CCTV clips se:',
+      '  Video → Caption → 20-50 Questions → Auto-answers',
+      '  = 2 to 5 LAKH Q&A pairs!',
+      '',
+      '📞 Custom AI Pipeline: +91-9319183121',
+      '🌐 https://evisionindia.com'
+    ].join('\n');
+  }
+
+
+
+return`🤖 *नमस्ते! E-Vision Bot यहाँ है।*\n\nमैं आपको help कर सकता हूँ:\n\n📷 *Cameras* - CCTV, PTZ, WiFi, Solar, 4G\n🔄 *PTZ Dome* - 25x to 44x Zoom, AI\n📹 *DVR/NVR* - 4Ch to 32Ch systems\n🔐 *Access Control* - Biometric, Card, Facial\n🌐 *Networking* - PoE Switches, SFP, Storage\n🚨 *Safety* - Fire Alarm, Metal Detector, Boom Barrier\n💰 *Pricing* - ₹999 से ₹2+ lakhs\n📞 *Contact* - +91-9319183121\n🏢 *Solutions* - Business, Home, School, Govt\n\n*कुछ भी पूछें!* 😊`;}
+
+async function fetchAIReply(text){
+  const GEMINI_KEY = localStorage.getItem('evAiKey') || '';
+  const prompt = `You are E-Vision India WhatsApp bot. Short reply do (max 5 lines), emojis use karo, Hindi/English mix karo.
+Products: WiFi Cam Rs.1800, 4G Cam Rs.3199, Solar Cam Rs.5599, PoE Switch Rs.999+, Security Kit Rs.15999+
+PTZ: 2MP-8MP, 25x-44x zoom. DVR/NVR: 4Ch-32Ch. Access Control: Biometric/RFID/Face.
+Contact: +91-9319183121 | Shop: shopevision.com | Free Shipping | 1yr Warranty
+CCTV AI: YOLOv11, ByteTrack, Qwen2.5-VL, Milvus/Qdrant, UCF-Crime/VIRAT/MEVA datasets.
+Customer: ${text}`;
+
+  // 3 second timeout helper
+  const timeout = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
+
+  // Try Gemini with 3s timeout
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+    const res = await Promise.race([
+      fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{parts:[{text: prompt}]}],
+          generationConfig:{maxOutputTokens:200, temperature:0.7}
+        })
+      }),
+      timeout(3000)
+    ]);
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if(reply) return reply;
+  } catch(e){ console.log('Gemini skip:', e.message); }
+
+  // Try allorigins proxy with 4s timeout
+  try {
+    const gemUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(gemUrl);
+    const res = await Promise.race([
+      fetch(proxyUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{parts:[{text: prompt}]}],
+          generationConfig:{maxOutputTokens:200, temperature:0.7}
+        })
+      }),
+      timeout(4000)
+    ]);
+    if(res.ok){
+      const data = await res.json();
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if(reply) return reply;
+    }
+  } catch(e){ console.log('Proxy skip:', e.message); }
+
+  // Instant local fallback
+  return getLocalReply(text);
+}
+
+function autoResize(){const i=el('messageInput');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,120)+'px';}
+
+const provLinks={gemini:{label:'Gemini API Key:',href:'https://aistudio.google.com/',txt:'Free Key लें'},openai:{label:'OpenAI API Key:',href:'https://platform.openai.com/api-keys',txt:'Key लें'},groq:{label:'Groq API Key:',href:'https://console.groq.com/',txt:'Free Key लें'}};
+el('aiProviderSelect').value=state.aiProvider;
+el('aiProviderSelect').onchange=function(){const p=provLinks[this.value];el('apiKeyLabel').textContent=p.label;el('apiKeyHelpLink').href=p.href;el('apiKeyHelpLink').textContent=p.txt;};
+el('aiConfigBtn').onclick=()=>openAiModalWithPassword();
+el('closeAiModal').onclick=()=>el('aiModal').classList.remove('open');
+el('aiModal').onclick=e=>{if(e.target===el('aiModal'))el('aiModal').classList.remove('open');};
+el('saveAiKeyBtn').onclick=()=>{const k=el('geminiApiKeyInput').value.trim(),pv=el('aiProviderSelect').value;if(!k){showToast('⚠️ API key डालें');return;}state.aiKey=k;state.aiProvider=pv;localStorage.setItem('evAiKey',k);localStorage.setItem('evAiProvider',pv);el('aiModal').classList.remove('open');showToast('✅ AI activated!');};
+el('clearAiKeyBtn').onclick=()=>{state.aiKey='';localStorage.removeItem('evAiKey');el('geminiApiKeyInput').value='';el('aiModal').classList.remove('open');showToast('🗑️ Key removed');};
+
+el('soundToggleBtn').onclick=()=>{state.soundOn=!state.soundOn;el('soundOnIcon').style.display=state.soundOn?'':'none';el('soundOffIcon').style.display=state.soundOn?'none':'';showToast(state.soundOn?'🔔 Sound On':'🔕 Sound Off');};
+
+el('attachBtn').onclick=()=>el('attachmentDrawer').classList.toggle('open');
+el('closeDrawerBtn').onclick=()=>el('attachmentDrawer').classList.remove('open');
+document.querySelectorAll('.drawer-item').forEach(item=>{item.onclick=()=>{const labels={cctv:'📷 CCTV Cameras',ptz:'🔄 PTZ Dome Cameras',dvr:'📹 DVR/NVR Systems',access:'🔐 Access Control',network:'🌐 Network Solutions',fire:'🚨 Fire Alarm & Safety'};el('attachmentDrawer').classList.remove('open');sendMessage(labels[item.dataset.cat]||item.dataset.cat);};});
+
+emojis.forEach(e=>{const b=document.createElement('button');b.className='emoji-btn-item';b.textContent=e;b.onclick=()=>{el('messageInput').value+=e;el('emojiPicker').classList.remove('open');el('messageInput').focus();};el('emojiGrid').appendChild(b);});
+el('emojiBtn').onclick=ev=>{ev.stopPropagation();el('emojiPicker').classList.toggle('open');};
+document.onclick=ev=>{if(!el('emojiPicker').contains(ev.target)&&ev.target!==el('emojiBtn'))el('emojiPicker').classList.remove('open');};
+
+el('searchInput').oninput=renderChatList;
+el('backBtn').onclick=()=>el('sidebar').classList.remove('hidden');
+el('newChatBtn').onclick=()=>showToast('💬 New chat coming soon!');
+el('menuBtn').onclick=()=>showToast('⚙️ Menu coming soon!');
+el('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+el('messageInput').addEventListener('input',autoResize);
+el('sendBtn').onclick=()=>sendMessage();
+
+renderChatList();
+openChat(0);
+// Technical Help chat welcome message
+setTimeout(()=>{
+  const tc=state.chats[2];
+  const tw={from:'in',text:'',html:`<strong>🔧 Technical Help — CCTV AI Pipeline</strong><br><br>
+<div class="product-card">
+<h4>🏗️ Production Architecture</h4>
+<div class="desc">CCTV Stream → YOLOv11 → ByteTrack → Event Extraction</div>
+<div class="desc">→ Qwen2.5-VL Caption → Milvus/Qdrant Vector DB → LLM Chatbot</div>
+</div>
+<div class="product-card">
+<h4>📊 Key Datasets</h4>
+<div class="desc">🎯 UCF-Crime | VIRAT | MEVA (Surveillance)</div>
+<div class="desc">❓ Next-QA | STAR | TVQA | EgoSchema (Video QA)</div>
+<div class="desc">🎬 ActivityNet Captions | YouCook2 (Captioning)</div>
+</div>
+<div class="product-card">
+<h4>🤖 Open-Source Models</h4>
+<div class="desc">Qwen2.5-VL | InternVL3 | Llama 4 | YOLOv11 | ByteTrack</div>
+<a class="shop-btn" href="https://evisionindia.com" target="_blank">🌐 E-Vision AI Solutions →</a>
+</div><br>
+Kuch bhi poochho — architecture, datasets, pipeline, training! 😊`,time:now()};
+  tc.messages.push(tw);
+  tc.lastMsg='Production AI Pipeline ready!';
+  tc.lastTime='Now';
+},800);
+
+setTimeout(()=>{const c=state.chats[0];const w={from:'in',text:'',html:`<strong>👋 E-Vision India में आपका स्वागत है!</strong><br><br>
+*2000 से leading CCTV & Security solutions provider*<br><br>
+<div class="product-card"><h4>📦 Complete Product Range</h4>
+<div class="desc">📷 CCTV: Dome, Bullet, IP, WiFi, Solar, 4G - ₹1,500-₹25,000</div>
+<div class="desc">🔄 PTZ Speed Dome: 2MP-8MP, 25x-44x Zoom - ₹20,000-₹2,00,000+</div>
+<div class="desc">📹 DVR/NVR: 4Ch to 32Ch systems - ₹5,000-₹1,50,000</div>
+<div class="desc">🔐 Access Control: Biometric, RFID, Facial</div>
+<div class="desc">🌐 Network: PoE Switches, SFP, Storage</div>
+<div class="desc">🚨 Safety: Fire Alarm, Metal Detector, Boom Barrier</div>
+<a class="shop-btn" href="https://shopevision.com" target="_blank">🛒 Full Catalog देखें →</a>
+</div><br>
+*📞 Contact: +91-9319183121*<br>
+*🚚 Free shipping all over India*<br>
+*🛡️ 1 Year warranty on all products*<br><br>
+मुझसे कुछ भी पूछें — cameras, pricing, installation, specifications! 😊`,time:now()};c.messages.push(w);c.lastMsg='E-Vision India में स्वागत है!';c.lastTime='Now';appendMsgDOM(w);scrollBottom();renderChatList();showToast('🤖 Claude AI Active!');},600);
+
+
+// ── Password Gate ──────────────────────────────
+const ADMIN_PASSWORD = 'evision@2211';
+
+function openAiModalWithPassword(){
+  el('pwdInput').value='';
+  el('pwdError').style.display='none';
+  el('pwdOverlay').classList.add('open');
+  setTimeout(()=>el('pwdInput').focus(),200);
+}
+
+function checkPassword(){
+  const entered = el('pwdInput').value;
+  if(entered === ADMIN_PASSWORD){
+    el('pwdOverlay').classList.remove('open');
+    el('aiModal').classList.add('open');
+    showToast('✅ Access Granted!');
+  } else {
+    el('pwdError').style.display='block';
+    el('pwdBox').classList.remove('pwd-shake');
+    void el('pwdBox').offsetWidth; // reflow
+    el('pwdBox').classList.add('pwd-shake');
+    el('pwdInput').value='';
+    el('pwdInput').focus();
+  }
+}
+
+function togglePwdEye(){
+  const inp = el('pwdInput');
+  inp.type = inp.type==='password' ? 'text' : 'password';
+}
+
+// Close pwd overlay on background click
+el('pwdOverlay').onclick = function(e){
+  if(e.target===el('pwdOverlay')) el('pwdOverlay').classList.remove('open');
+};
+
+// Enter key on password input
+el('pwdInput').addEventListener('keydown', function(e){
+  if(e.key==='Enter') checkPassword();
+});
+
+</script>
+</body>
+</html>
